@@ -6,18 +6,20 @@
  */
 
 import { useState } from 'react'
-import CsvUploader from './components/CsvUploader.jsx'
-import DataTable from './components/DataTable.jsx'
-import ErrorBanner from './components/ErrorBanner.jsx'
-import { parseRulesCSV, parseCartCSV } from './engine/csvParser.js'
-import { processCart, cartTotal } from './engine/discountEngine.js'
+import CsvUploader from './components/common/CsvUploader.jsx'
+import DataTable from './components/common/DataTable.jsx'
+import ErrorBanner from './components/common/ErrorBanner.jsx'
+import RuleInput from './features/rules/RuleInput.jsx'
+import PdfCartUploader from './features/cart/PdfCartUploader.jsx'
+import { parseRulesCSV, parseCartCSV } from './parsers/csvParser.js'
+import { calculateCart } from './domain/discountEngine.js'
 
 // ── Column definitions ───────────────────────────────────────────
 
 const RULES_COLUMNS = [
   { key: 'ruleId',    label: 'Rule ID' },
   { key: 'scope',     label: 'Scope',      render: (v) => v.charAt(0).toUpperCase() + v.slice(1) },
-  { key: 'appliesTo', label: 'Applies To' },
+  { key: 'appliesTo', label: 'Applies To', render: (v, row) => row.scope === 'cart' ? 'Entire cart' : v },
   { key: 'type',      label: 'Type',       render: (v) => v.charAt(0).toUpperCase() + v.slice(1) },
   {
     key: 'value',
@@ -25,6 +27,11 @@ const RULES_COLUMNS = [
     render: (v, row) => row.type === 'percentage' ? `${v}% off` : `Rs.${v} off`,
   },
   { key: 'stackable', label: 'Stackable',  render: (v) => (v ? 'Yes' : 'No') },
+  {
+    key: 'minCartValue',
+    label: 'Minimum Cart',
+    render: (v, row) => row.scope === 'cart' ? `Rs.${v.toLocaleString('en-IN')}` : '—',
+  },
 ]
 
 const CART_COLUMNS = [
@@ -71,14 +78,13 @@ const RESULTS_COLUMNS = [
 
 const S = {
   page:    { minHeight: '100vh', background: '#f7f7f9', fontFamily: 'Arial, sans-serif' },
-  header:  { background: '#131A48', padding: '0.85rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  header:  { background: '#131A48', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   logoTxt: { fontFamily: 'Georgia, serif', fontSize: 17, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' },
   logoSpan:{ color: '#FF5800' },
   headerSub: { fontSize: 11, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.07em' },
-  main:    { maxWidth: 960, margin: '0 auto', padding: '1.8rem 1.5rem' },
+  main:    { maxWidth: 960, margin: '0 auto' },
   section: { background: '#fff', border: '1px solid #CECECE', borderRadius: 6, padding: '1.2rem 1.4rem', marginBottom: '1.2rem' },
   sectionTitle: { fontFamily: 'Georgia, serif', fontWeight: 700, fontSize: 14, color: '#131A48', marginBottom: '0.7rem', paddingBottom: 6, borderBottom: '2px solid #FF5800', display: 'inline-block' },
-  grid2:   { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' },
   btn:     {
     background: '#FF5800', color: '#fff', border: 'none', borderRadius: 4,
     padding: '0.65rem 2rem', fontSize: 13, fontWeight: 700, cursor: 'pointer',
@@ -133,9 +139,30 @@ export default function App() {
     setResults(null)
   }
 
+  function handlePdfCartLoad(items, errors, fileName) {
+    setCartErrors(errors)
+    if (items.length === 0) return
+
+    setCartItems(items)
+    setCartFileName(fileName)
+    setResults(rules.length > 0 ? calculateCart(items, rules) : null)
+  }
+
   function handleCalculate() {
-    const res = processCart(cartItems, rules)
-    setResults(res)
+    setResults(calculateCart(cartItems, rules))
+  }
+
+  function handleRuleConfirm(candidate) {
+    const highestRuleNumber = rules.reduce((highest, rule) => {
+      const match = /^RULE-(\d+)$/i.exec(rule.ruleId)
+      return match ? Math.max(highest, Number(match[1])) : highest
+    }, 0)
+    const ruleId = `RULE-${String(highestRuleNumber + 1).padStart(2, '0')}`
+    const updatedRules = [...rules, { ruleId, ...candidate }]
+
+    setRules(updatedRules)
+    setRulesErr([])
+    if (cartItems.length > 0) setResults(calculateCart(cartItems, updatedRules))
   }
 
   const canCalculate = rules.length > 0 && cartItems.length > 0
@@ -145,15 +172,15 @@ export default function App() {
   return (
     <div style={S.page}>
       {/* Header */}
-      <div style={S.header}>
+      <div className="app-header" style={S.header}>
         <div style={S.logoTxt}>O<span style={S.logoSpan}>pp</span>tra</div>
         <div style={S.headerSub}>Discount Engine</div>
       </div>
 
-      <div style={S.main}>
+      <div className="app-main" style={S.main}>
 
         {/* Upload row */}
-        <div style={S.grid2}>
+        <div className="upload-grid">
           {/* Rules upload */}
           <div style={S.section}>
             <div style={S.sectionTitle}>Discount Rules</div>
@@ -185,6 +212,10 @@ export default function App() {
               hasData={cartItems.length > 0}
               fileName={cartFileName}
             />
+            <PdfCartUploader
+              onLoad={handlePdfCartLoad}
+              active={cartFileName.toLowerCase().endsWith('.pdf')}
+            />
             <ErrorBanner errors={cartErrors} />
             {cartItems.length > 0 && (
               <div style={{ marginTop: '0.75rem' }}>
@@ -197,9 +228,15 @@ export default function App() {
           </div>
         </div>
 
+        <div style={S.section}>
+          <div style={S.sectionTitle}>Add a Rule in Plain English</div>
+          <RuleInput onConfirm={handleRuleConfirm} />
+        </div>
+
         {/* Calculate button */}
         <div style={{ textAlign: 'center', marginBottom: '1.2rem' }}>
           <button
+            className="primary-calculate"
             style={canCalculate ? S.btn : S.btnDisabled}
             onClick={handleCalculate}
             disabled={!canCalculate}
@@ -217,10 +254,45 @@ export default function App() {
         {results && (
           <div style={S.section}>
             <div style={S.sectionTitle}>Cart Summary</div>
-            <DataTable columns={RESULTS_COLUMNS} rows={results} />
-            <div style={S.totalRow}>
-              <span style={S.totalLabel}>Cart Total</span>
-              <span style={S.totalValue}>Rs.{cartTotal(results).toLocaleString('en-IN')}</span>
+            <DataTable columns={RESULTS_COLUMNS} rows={results.items} />
+            {results.cartOffer.applied && (
+              <div
+                className="offer-summary"
+                style={{
+                  marginTop: '0.75rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: 4,
+                  background: '#f0faf2',
+                  border: '1px solid #a8d5b2',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#1e5c2c' }}>
+                    Cart offer applied
+                  </div>
+                  <div style={{ fontSize: 11, color: '#496b51', marginTop: 2 }}>
+                    {results.cartOffer.appliedRules.map((rule) => (
+                      rule.type === 'percentage'
+                        ? `${rule.ruleId}: ${rule.value}% off`
+                        : `${rule.ruleId}: Rs.${rule.value} off`
+                    )).join(' + ')}
+                  </div>
+                </div>
+                <div style={{ fontWeight: 700, color: '#1e5c2c', whiteSpace: 'nowrap' }}>
+                  Rs.{results.cartOffer.totalDiscount.toLocaleString('en-IN')} saved
+                </div>
+              </div>
+            )}
+            <div className="cart-total-row" style={{ ...S.totalRow, borderTop: '1px solid #CECECE' }}>
+              <span style={S.totalLabel}>Cart total before offer</span>
+              <span style={S.totalValue}>Rs.{results.subtotal.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="cart-total-row" style={S.totalRow}>
+              <span style={S.totalLabel}>Final cart total</span>
+              <span style={S.totalValue}>Rs.{results.finalTotal.toLocaleString('en-IN')}</span>
             </div>
           </div>
         )}

@@ -1,2 +1,37 @@
 *, *::before, *::after { box-sizing: border-box; }
-body { margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, textarea, input { font: inherit; }
+
+button:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid rgba(255, 88, 0, 0.35);
+  outline-offset: 2px;
+}
+
+.app-header { padding: 0.85rem 2rem; }
+.app-main { padding: 1.8rem 1.5rem; }
+.upload-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+.offer-summary { flex-wrap: wrap; }
+
+@media (max-width: 720px) {
+  .app-header { padding: 0.8rem 1rem; }
+  .app-main { padding: 1rem 0.75rem; }
+  .upload-grid { grid-template-columns: minmax(0, 1fr); }
+  .primary-calculate { width: 100%; }
+  .cart-total-row {
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+  }
+}

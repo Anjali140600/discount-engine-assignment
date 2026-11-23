@@ -1,87 +1,124 @@
-# Opptra Discount Engine — Base Implementation
+# Opptra Discount Engine
 
-This is the base implementation for the Opptra FDE Intern assignment.
-Fork this repo, complete the tasks in the assignment brief, and submit your GitHub link + Loom.
+A customer-facing cart pricing prototype that selects the best item offer,
+stacks eligible discounts, applies threshold-based cart offers, and explains
+the result in plain language.
 
-## Running locally
+## Live deployment
 
-```bash
-npm install
-npm run dev
-```
+Deployment URL: _add after deployment_
 
-Open http://localhost:5173
+## Run locally
 
-## Deploying
+1. Run `npm install`.
+2. Copy `.env.example` to `.env.local` and set `GEMINI_API_KEY`.
+3. Run `npm run dev` and open `http://localhost:5173`.
 
-```bash
-npm run build
-```
+The CSV and PDF pricing paths work without a remote key. The key is required
+only for interpreting rules written in plain English.
 
-Deploy the `dist/` folder to Vercel, Netlify, or any static host.
-The live deployment URL must be in your README before submission.
+## Features
 
-## How to use
+- CSV upload for discount rules and cart items
+- Best-saving selection among matching non-stackable item rules
+- Stackable rules applied after the winning non-stackable rule
+- Cart offers evaluated after all item discounts
+- Plain-English rule interpretation with validation and confirm/discard controls
+- Client-side PDF cart extraction with partial-row error reporting
+- Automatic recalculation after a confirmed rule or valid PDF upload
+- Customer-readable offer explanations and no-offer states
+- Responsive layout and keyboard-visible controls
 
-1. Upload `sample-data/rules.csv` as the discount rules input
-2. Upload `sample-data/cart.csv` as the cart input
-3. Click **Calculate Discounts**
+## Try the sample data
 
-## Project structure
+Upload `sample-data/rules.csv`, then upload either `sample-data/cart.csv` or
+`sample-data/cart.pdf`. The expected summary is:
 
-```
+| Result | Amount |
+|---|---:|
+| Cart total after item offers | Rs.5,932 |
+| Cart offer saving | Rs.593 |
+| Final cart total | Rs.5,339 |
+
+The sample PDF is reproducible with `npm run sample:pdf`.
+
+## Architecture
+
+```text
 src/
-  engine/
-    discountEngine.js   ← pure discount logic (no UI)
-    csvParser.js        ← CSV → typed objects
-  components/
-    CsvUploader.jsx     ← file upload area
-    DataTable.jsx       ← reusable table
-    ErrorBanner.jsx     ← parse error display
-  App.jsx               ← main UI + state
-  main.jsx              ← entry point
-
-sample-data/
-  rules.csv             ← sample discount rules
-  cart.csv              ← sample cart items
+  components/common/     Reusable interface components
+  domain/                Pure pricing and rule validation
+  parsers/               CSV and positioned-PDF conversion
+  features/rules/        Rule entry, confirmation, and endpoint client
+  features/cart/         PDF upload and browser extraction
+  App.jsx                Page composition and session state
+api/
+  parse-rule.js          Protected server endpoint
+test/
+  api/                   Endpoint behavior
+  domain/                Pricing and validation behavior
+  parsers/               CSV and PDF behavior
 ```
 
-## CSV formats
+All input paths produce the same `DiscountRule` or `CartItem` shapes before
+calling the pricing domain. This keeps file handling and remote calls out of the
+calculator and makes another input method possible without rewriting pricing.
 
-**rules.csv**
+## Pricing decisions
 
-| Column     | Type              | Example          |
-|------------|-------------------|------------------|
-| rule_id    | string            | RULE-01          |
-| scope      | brand \| platform | platform         |
-| applies_to | string            | Amazon India     |
-| type       | percentage \| flat| percentage       |
-| value      | number            | 15               |
-| stackable  | true \| false     | false            |
+- Multiple matching non-stackable rules compete by rupee saving, regardless of
+  whether their scope is brand or platform.
+- Every matching stackable rule is applied after the winning non-stackable rule.
+- Percentage stacking uses the remaining price.
+- A discount is capped at the remaining price, so totals cannot become negative.
+- Values are rounded to whole rupees to match the supplied expected results.
+- Cart thresholds are inclusive and evaluated against discounted item totals.
+- If several cart rules exist, the best non-stackable rule wins and eligible
+  stackable cart rules follow it.
 
-**cart.csv**
+## Input validation and failure behavior
 
-| Column     | Type   | Example      |
-|------------|--------|--------------|
-| item_id    | string | ITEM-01      |
-| product    | string | Cushion Cover|
-| brand      | string | Natura Casa  |
-| platform   | string | Amazon India |
-| base_price | number | 1299         |
+- Percentages must be greater than zero and no more than 100.
+- Cart rules require a positive minimum cart value.
+- Brand and platform rules require an applies-to value.
+- Parsed rules are treated as untrusted and validated on both sides of the
+  endpoint before confirmation.
+- Ambiguous descriptions are rejected with a request for missing details.
+- PDF rows are validated independently. Valid rows are kept and malformed rows
+  are reported; if no usable rows exist, the current cart is preserved.
+- Image-only or encrypted PDFs are rejected with a clear message.
 
-## Discount logic
+## Security and privacy
 
-- When multiple non-stackable rules match an item, the one giving the **largest saving in rupees** is applied.
-- Rules marked `stackable: true` apply **on top of** the winning non-stackable rule.
-- If no rules match, the base price is returned with a "No offers available" note.
+The remote key is read only by the server endpoint and is never added to the
+browser bundle. CSV and PDF files are processed in the browser and are not
+uploaded. There is no database: rules, cart items, and results live only in the
+current browser session, as allowed by the assignment.
 
-## Expected results for the sample data
+## Commands
 
-| Item    | Base Price | Final Price | Reasoning                              |
-|---------|-----------|-------------|----------------------------------------|
-| ITEM-01 | Rs.1,299  | Rs.1,104    | Platform offer: 15% off (beats Rs.150) |
-| ITEM-02 | Rs.849    | Rs.629      | Brand offer: Rs.150 off + Platform 10% |
-| ITEM-03 | Rs.599    | Rs.509      | Platform offer: 15% off                |
-| ITEM-04 | Rs.2,499  | Rs.2,499    | No offers available                    |
-| ITEM-05 | Rs.449    | Rs.382      | Platform offer: 15% off                |
-| ITEM-06 | Rs.899    | Rs.809      | Platform offer: 10% off                |
+```bash
+npm run dev        # local development, including the rule endpoint adapter
+npm test           # automated tests
+npm run build      # production build
+npm run preview    # preview the static build (remote endpoint not included)
+npm run sample:pdf # regenerate the sample PDF fixture
+```
+
+## Deployment
+
+Deploy the repository to Vercel and add `GEMINI_API_KEY` as a server environment
+variable. `GEMINI_MODEL` is optional and defaults to the model named in
+`.env.example`. Do not prefix server secrets with `VITE_`, because variables
+with that prefix are exposed to browser code.
+
+## Known tradeoffs
+
+- State is intentionally session-only; refreshing clears uploaded data.
+- PDF parsing targets text-based tables with the documented four-column layout,
+  not arbitrary invoices or scanned images.
+- The PDF reader is a comparatively large dependency, so it is downloaded only
+  when a PDF is selected.
+- Rule interpretation depends on an external service and can be affected by
+  availability, latency, quota, or model changes. Strict validation prevents an
+  invalid response from entering the pricing engine.
