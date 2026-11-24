@@ -8,6 +8,8 @@ the result in plain language.
 
 Deployment URL: https://discount-engine-assignment-zeta.vercel.app/
 
+Walkthrough video: https://drive.google.com/file/d/1wlnrJJxLgj8EU9boGC0KVkNBj-J--2fD/view?usp=sharing
+
 ## Run locally
 
 1. Run `npm install`.
