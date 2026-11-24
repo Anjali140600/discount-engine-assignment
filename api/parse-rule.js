@@ -16,12 +16,8 @@ const RULE_SCHEMA = {
 }
 
 function extractOutputText(providerResponse) {
-  for (const step of providerResponse.steps || []) {
-    if (step.type !== 'model_output') continue
-    const textBlock = (step.content || []).find((block) => block.type === 'text')
-    if (textBlock?.text) return textBlock.text
-  }
-  return ''
+  return providerResponse.candidates?.[0]?.content?.parts
+    ?.find((part) => typeof part.text === 'string')?.text || ''
 }
 
 export default async function handler(request, response) {
@@ -61,19 +57,20 @@ export default async function handler(request, response) {
   ].join('\n')
 
   try {
-    const providerResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+    const providerResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-goog-api-key': apiKey,
       },
       body: JSON.stringify({
-        model: 'gemini-3.8-flash',
-        input: prompt,
-        response_format: {
-          type: 'text',
-          mime_type: 'application/json',
-          schema: RULE_SCHEMA,
+        contents: [{
+          role: 'user',
+          parts: [{ text: prompt }],
+        }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseJsonSchema: RULE_SCHEMA,
         },
       }),
       signal: AbortSignal.timeout(12000),
