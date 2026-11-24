@@ -57,7 +57,7 @@ export default async function handler(request, response) {
   ].join('\n')
 
   try {
-    const model = encodeURIComponent(process.env.GEMINI_MODEL || 'gemini-2.5-flash')
+    const model = encodeURIComponent(process.env.GEMINI_MODEL || 'gemini-3.8-flash')
     const providerResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST',
       headers: {
@@ -78,9 +78,6 @@ export default async function handler(request, response) {
     })
 
     if (!providerResponse.ok) {
-      const providerError = await providerResponse.json().catch(() => ({}))
-      const category = providerError.error?.status || 'UNKNOWN'
-      console.error(`Rule provider request failed: ${providerResponse.status} ${category}`)
       return response.status(502).json({ error: 'The interpretation service is temporarily unavailable.' })
     }
 

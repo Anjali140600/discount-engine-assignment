@@ -48,7 +48,7 @@ test('returns a validated rule from a valid structured response', async () => {
   const previousKey = process.env.GEMINI_API_KEY
   process.env.GEMINI_API_KEY = 'test-key'
   globalThis.fetch = async (url, options) => {
-    assert.match(url, /gemini-2\.5-flash:generateContent$/)
+    assert.match(url, /gemini-3\.8-flash:generateContent$/)
     const requestBody = JSON.parse(options.body)
     assert.equal(requestBody.generationConfig.responseMimeType, 'application/json')
     return {
