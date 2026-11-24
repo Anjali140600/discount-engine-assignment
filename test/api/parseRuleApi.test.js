@@ -110,6 +110,37 @@ test('returns a useful error for an ambiguous description', async () => {
   else delete process.env.GEMINI_API_KEY
 })
 
+test('accepts valid structured output wrapped in markdown fences', async () => {
+  const previousFetch = globalThis.fetch
+  const previousKey = process.env.GEMINI_API_KEY
+  process.env.GEMINI_API_KEY = 'test-key'
+  const candidate = {
+    resolved: true,
+    error: '',
+    scope: 'platform',
+    appliesTo: 'Flipkart',
+    type: 'flat',
+    value: 100,
+    stackable: false,
+    minCartValue: 0,
+  }
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      candidates: [{ content: { parts: [{ text: `\`\`\`json\n${JSON.stringify(candidate)}\n\`\`\`` }] } }],
+    }),
+  })
+  const response = createResponse()
+
+  await handler({ method: 'POST', body: { description: 'Rs.100 off all Flipkart items' } }, response)
+
+  assert.equal(response.statusCode, 200)
+  assert.equal(response.body.rule.value, 100)
+  globalThis.fetch = previousFetch
+  if (previousKey) process.env.GEMINI_API_KEY = previousKey
+  else delete process.env.GEMINI_API_KEY
+})
+
 test('rejects malformed JSON before any provider call', async () => {
   const response = createResponse()
 

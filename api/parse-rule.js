@@ -20,6 +20,23 @@ function extractOutputText(providerResponse) {
     ?.find((part) => typeof part.text === 'string')?.text || ''
 }
 
+function parseOutputJson(outputText) {
+  const withoutFences = outputText
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+
+  try {
+    return JSON.parse(withoutFences)
+  } catch {
+    // Some models add a short sentence even when JSON output is requested.
+    const start = withoutFences.indexOf('{')
+    const end = withoutFences.lastIndexOf('}')
+    if (start === -1 || end <= start) throw new Error('No JSON object found')
+    return JSON.parse(withoutFences.slice(start, end + 1))
+  }
+}
+
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
     response.setHeader('Allow', 'POST')
@@ -82,7 +99,7 @@ export default async function handler(request, response) {
 
     const providerBody = await providerResponse.json()
     const outputText = extractOutputText(providerBody)
-    const parsed = JSON.parse(outputText)
+    const parsed = parseOutputJson(outputText)
 
     if (!parsed.resolved) {
       return response.status(422).json({ error: parsed.error || 'Please describe the rule more specifically.' })
