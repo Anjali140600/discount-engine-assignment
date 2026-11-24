@@ -6,7 +6,7 @@ the result in plain language.
 
 ## Live deployment
 
-Deployment URL: _add after deployment_
+Deployment URL: https://discount-engine-assignment-zeta.vercel.app/
 
 ## Run locally
 
