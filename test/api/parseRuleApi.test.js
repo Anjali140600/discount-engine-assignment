@@ -23,9 +23,10 @@ function createResponse() {
 
 function providerPayload(value) {
   return {
-    steps: [{
-      type: 'model_output',
-      content: [{ type: 'text', text: JSON.stringify(value) }],
+    candidates: [{
+      content: {
+        parts: [{ text: JSON.stringify(value) }],
+      },
     }],
   }
 }
@@ -46,19 +47,24 @@ test('returns a validated rule from a valid structured response', async () => {
   const previousFetch = globalThis.fetch
   const previousKey = process.env.GEMINI_API_KEY
   process.env.GEMINI_API_KEY = 'test-key'
-  globalThis.fetch = async () => ({
-    ok: true,
-    json: async () => providerPayload({
-      resolved: true,
-      error: '',
-      scope: 'brand',
-      appliesTo: 'Natura Casa',
-      type: 'percentage',
-      value: 20,
-      stackable: true,
-      minCartValue: 0,
-    }),
-  })
+  globalThis.fetch = async (url, options) => {
+    assert.match(url, /gemini-2\.5-flash:generateContent$/)
+    const requestBody = JSON.parse(options.body)
+    assert.equal(requestBody.generationConfig.responseMimeType, 'application/json')
+    return {
+      ok: true,
+      json: async () => providerPayload({
+        resolved: true,
+        error: '',
+        scope: 'brand',
+        appliesTo: 'Natura Casa',
+        type: 'percentage',
+        value: 20,
+        stackable: true,
+        minCartValue: 0,
+      }),
+    }
+  }
   const response = createResponse()
 
   await handler({ method: 'POST', body: { description: '20% off Natura Casa, stackable' } }, response)
