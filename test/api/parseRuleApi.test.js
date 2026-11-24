@@ -141,6 +141,41 @@ test('accepts valid structured output wrapped in markdown fences', async () => {
   else delete process.env.GEMINI_API_KEY
 })
 
+test('retries one transient provider failure and returns the valid rule', async () => {
+  const previousFetch = globalThis.fetch
+  const previousKey = process.env.GEMINI_API_KEY
+  process.env.GEMINI_API_KEY = 'test-key'
+  let calls = 0
+  globalThis.fetch = async () => {
+    calls += 1
+    if (calls === 1) return { ok: false, status: 503 }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => providerPayload({
+        resolved: true,
+        error: '',
+        scope: 'platform',
+        appliesTo: 'Flipkart',
+        type: 'flat',
+        value: 100,
+        stackable: false,
+        minCartValue: 0,
+      }),
+    }
+  }
+  const response = createResponse()
+
+  await handler({ method: 'POST', body: { description: 'Rs.100 off all Flipkart items' } }, response)
+
+  assert.equal(calls, 2)
+  assert.equal(response.statusCode, 200)
+  assert.equal(response.body.rule.value, 100)
+  globalThis.fetch = previousFetch
+  if (previousKey) process.env.GEMINI_API_KEY = previousKey
+  else delete process.env.GEMINI_API_KEY
+})
+
 test('rejects malformed JSON before any provider call', async () => {
   const response = createResponse()
 

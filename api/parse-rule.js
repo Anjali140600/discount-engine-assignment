@@ -74,24 +74,33 @@ export default async function handler(request, response) {
   ].join('\n')
 
   try {
-    const providerResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
+    const requestBody = JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }],
+      }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseJsonSchema: RULE_SCHEMA,
       },
-      body: JSON.stringify({
-        contents: [{
-          role: 'user',
-          parts: [{ text: prompt }],
-        }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseJsonSchema: RULE_SCHEMA,
-        },
-      }),
-      signal: AbortSignal.timeout(12000),
     })
+
+    let providerResponse
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      providerResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: requestBody,
+        signal: AbortSignal.timeout(12000),
+      })
+
+      const transientFailure = providerResponse.status === 429 || providerResponse.status >= 500
+      if (providerResponse.ok || !transientFailure || attempt === 1) break
+      await new Promise((resolve) => setTimeout(resolve, 400))
+    }
 
     if (!providerResponse.ok) {
       return response.status(502).json({ error: 'The interpretation service is temporarily unavailable.' })
