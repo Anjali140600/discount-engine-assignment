@@ -79,10 +79,8 @@ export default async function handler(request, response) {
 
     if (!providerResponse.ok) {
       const providerError = await providerResponse.json().catch(() => ({}))
-      console.error('Rule provider request failed', {
-        status: providerResponse.status,
-        category: providerError.error?.status || 'UNKNOWN',
-      })
+      const category = providerError.error?.status || 'UNKNOWN'
+      console.error(`Rule provider request failed: ${providerResponse.status} ${category}`)
       return response.status(502).json({ error: 'The interpretation service is temporarily unavailable.' })
     }
 
