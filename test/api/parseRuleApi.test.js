@@ -23,10 +23,9 @@ function createResponse() {
 
 function providerPayload(value) {
   return {
-    candidates: [{
-      content: {
-        parts: [{ text: JSON.stringify(value) }],
-      },
+    steps: [{
+      type: 'model_output',
+      content: [{ type: 'text', text: JSON.stringify(value) }],
     }],
   }
 }
@@ -48,9 +47,10 @@ test('returns a validated rule from a valid structured response', async () => {
   const previousKey = process.env.GEMINI_API_KEY
   process.env.GEMINI_API_KEY = 'test-key'
   globalThis.fetch = async (url, options) => {
-    assert.match(url, /gemini-3\.8-flash:generateContent$/)
+    assert.match(url, /v1beta\/interactions$/)
     const requestBody = JSON.parse(options.body)
-    assert.equal(requestBody.generationConfig.responseMimeType, 'application/json')
+    assert.equal(requestBody.model, 'gemini-3.8-flash')
+    assert.equal(requestBody.response_format.mime_type, 'application/json')
     return {
       ok: true,
       json: async () => providerPayload({
