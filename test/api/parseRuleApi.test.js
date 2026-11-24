@@ -176,6 +176,28 @@ test('retries one transient provider failure and returns the valid rule', async 
   else delete process.env.GEMINI_API_KEY
 })
 
+test('uses the validated documented fallback after provider failure', async () => {
+  const previousFetch = globalThis.fetch
+  const previousKey = process.env.GEMINI_API_KEY
+  process.env.GEMINI_API_KEY = 'test-key'
+  globalThis.fetch = async () => ({ ok: false, status: 503 })
+  const response = createResponse()
+
+  await handler({ method: 'POST', body: { description: 'Rs.100 flat discount on all Flipkart items' } }, response)
+
+  assert.equal(response.statusCode, 200)
+  assert.deepEqual(response.body.rule, {
+    scope: 'platform',
+    appliesTo: 'Flipkart',
+    type: 'flat',
+    value: 100,
+    stackable: false,
+  })
+  globalThis.fetch = previousFetch
+  if (previousKey) process.env.GEMINI_API_KEY = previousKey
+  else delete process.env.GEMINI_API_KEY
+})
+
 test('rejects malformed JSON before any provider call', async () => {
   const response = createResponse()
 

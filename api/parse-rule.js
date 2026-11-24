@@ -1,4 +1,5 @@
 import { validateRuleCandidate } from '../src/domain/ruleValidation.js'
+import { parseRuleTextFallback } from '../src/parsers/ruleTextFallback.js'
 
 const RULE_SCHEMA = {
   type: 'object',
@@ -103,7 +104,9 @@ export default async function handler(request, response) {
     }
 
     if (!providerResponse.ok) {
-      return response.status(502).json({ error: 'The interpretation service is temporarily unavailable.' })
+      const fallback = parseRuleTextFallback(description)
+      if (fallback.data) return response.status(200).json({ rule: fallback.data })
+      return response.status(422).json({ error: fallback.errors[0] })
     }
 
     const providerBody = await providerResponse.json()

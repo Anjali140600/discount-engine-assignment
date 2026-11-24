@@ -84,6 +84,8 @@ calculator and makes another input method possible without rewriting pricing.
 - Parsed rules are treated as untrusted and validated on both sides of the
   endpoint before confirmation.
 - Ambiguous descriptions are rejected with a request for missing details.
+- If the remote parser is temporarily unavailable, documented rule formats use
+  a narrow validated fallback; unsupported or ambiguous wording is still rejected.
 - PDF rows are validated independently. Valid rows are kept and malformed rows
   are reported; if no usable rows exist, the current cart is preserved.
 - Image-only or encrypted PDFs are rejected with a clear message.
