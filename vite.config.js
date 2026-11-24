@@ -42,7 +42,6 @@ export default defineConfig(({ mode }) => {
   // Vite does not expose this server-only key to browser code.
   const serverEnv = loadEnv(mode, process.cwd(), '')
   if (serverEnv.GEMINI_API_KEY) process.env.GEMINI_API_KEY = serverEnv.GEMINI_API_KEY
-  if (serverEnv.GEMINI_MODEL) process.env.GEMINI_MODEL = serverEnv.GEMINI_MODEL
 
   return {
     plugins: [react(), localRuleApi()],

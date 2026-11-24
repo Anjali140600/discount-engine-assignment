@@ -57,7 +57,7 @@ export default async function handler(request, response) {
   ].join('\n')
 
   try {
-    const model = encodeURIComponent(process.env.GEMINI_MODEL || 'gemini-3.8-flash')
+    const model = 'gemini-3.8-flash'
     const providerResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST',
       headers: {

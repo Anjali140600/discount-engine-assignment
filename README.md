@@ -108,9 +108,8 @@ npm run sample:pdf # regenerate the sample PDF fixture
 ## Deployment
 
 Deploy the repository to Vercel and add `GEMINI_API_KEY` as a server environment
-variable. `GEMINI_MODEL` is optional and defaults to the model named in
-`.env.example`. Do not prefix server secrets with `VITE_`, because variables
-with that prefix are exposed to browser code.
+variable. Do not prefix server secrets with `VITE_`, because variables with that
+prefix are exposed to browser code.
 
 ## Known tradeoffs
 
