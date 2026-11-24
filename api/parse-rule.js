@@ -13,7 +13,6 @@ const RULE_SCHEMA = {
     minCartValue: { type: 'number' },
   },
   required: ['resolved', 'error', 'scope', 'appliesTo', 'type', 'value', 'stackable', 'minCartValue'],
-  additionalProperties: false,
 }
 
 function extractOutputText(providerResponse) {
